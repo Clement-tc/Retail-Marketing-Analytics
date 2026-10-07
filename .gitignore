@@ -1,0 +1,22 @@
+# dbt
+target/
+dbt_packages/
+logs/
+.user.yml
+
+# python
+venv/
+__pycache__/
+*.pyc
+
+# secrets
+.env
+*.p8
+*.pem
+
+# données brutes kaggle (téléchargées en local)
+data/
+
+# éditeur
+.vscode/*
+!.vscode/settings.json
