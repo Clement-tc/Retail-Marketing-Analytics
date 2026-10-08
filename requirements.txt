@@ -1,4 +1,6 @@
 ﻿dbt-core==1.12.5
 dbt-snowflake==1.12.1
+snowflake-connector-python[pandas]==4.8.0
+python-dotenv==1.2.4
 # rpds-py >2026.5.1 bloqué par Smart App Control (Windows) : DLL non encore réputée
 rpds-py==2026.5.1

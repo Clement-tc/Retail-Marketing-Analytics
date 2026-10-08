@@ -45,4 +45,6 @@ grant role reporter to user <user>;
 alter user <user> set
   rsa_public_key = '<public_key>'
   default_role = transformer
-  default_warehouse = transforming_wh;
+  default_warehouse = transforming_wh
+  -- sinon tous les rôles accordés (dont accountadmin) restent actifs en secondaire
+  default_secondary_roles = ();
