@@ -1,0 +1,97 @@
+version: 2
+
+models:
+  - name: stg_dunnhumby__campaigns
+    description: "Une ligne par campagne marketing."
+    data_tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "end_day >= start_day"
+    columns:
+      - name: campaign_id
+        description: "Identifiant de la campagne."
+        data_tests:
+          - unique
+          - not_null
+      - name: campaign_type
+        description: "Type de campagne (TypeA, TypeB, TypeC)."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['TypeA', 'TypeB', 'TypeC']
+      - name: start_day
+        description: "Jour de début (1 = premier jour du dataset)."
+      - name: end_day
+        description: "Jour de fin."
+      - name: _loaded_at
+        description: "Horodatage de chargement dans RAW."
+      - name: _batch_id
+        description: "Lot de livraison (history, week_91...)."
+
+  - name: stg_dunnhumby__transactions        # ← same list, no second "models:"
+    description: "Une ligne par produit et par ticket de caisse."
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - basket_id
+              - product_id
+    columns:
+      - name: household_id
+        description: "Identifiant du foyer."
+        data_tests:
+          - not_null
+      - name: basket_id
+        description: "Identifiant du ticket de caisse."
+        data_tests:
+          - not_null
+      - name: day_number
+        description: "Numéro du jour (1 à 711), pas une date."
+        data_tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 1
+                max_value: 711
+      - name: product_id
+        description: "Identifiant du produit."
+        data_tests:
+          - not_null
+      - name: quantity
+        description: "Quantité achetée."
+        data_tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+      - name: sales_value
+        description: "Montant encaissé par le magasin."
+      - name: store_id
+        description: "Identifiant du magasin."
+      - name: retail_discount
+        description: "Remise carte fidélité, en positif."
+        data_tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+              config:
+                severity: warn        # 36 lignes anormales dans la source
+      - name: transaction_time_hhmm
+        description: "Heure de passage en caisse, format HHMM (1631 = 16h31)."
+      - name: week_number
+        description: "Numéro de semaine (1 à 102)."
+      - name: coupon_discount
+        description: "Remise coupon fabricant, en positif."
+        data_tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+      - name: coupon_match_discount
+        description: "Remise du magasin qui s'aligne sur le coupon fabricant, en positif."
+        data_tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+      - name: _loaded_at
+        description: "Horodatage de chargement dans RAW."
+      - name: _batch_id
+        description: "Lot de livraison (history, week_91...)."

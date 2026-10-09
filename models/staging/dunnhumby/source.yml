@@ -1,0 +1,27 @@
+version: 2
+
+sources:
+  - name: dunnhumby
+    description: "Données dunnhumby The Complete Journey, chargées par le simulateur."
+    database: raw
+    schema: dunnhumby
+    tables:
+      - name: campaign_desc
+        description: "Campagnes marketing : type, jour de début et de fin."
+      - name: campaign_table
+        description: "Foyers ciblés par chaque campagne."
+      - name: coupon
+        description: "Coupons et produits associés, par campagne."
+      - name: coupon_redempt
+        description: "Coupons utilisés par les foyers."
+      - name: hh_demographic
+        description: "Profil démographique, disponible pour environ un tiers des foyers."
+      - name: product
+        description: "Catalogue produits."
+      - name: transaction_data
+        description: "Lignes de tickets de caisse, livrées chaque semaine."
+        config:
+          loaded_at_field: _loaded_at
+          freshness:
+            warn_after: {count: 8, period: day}
+            error_after: {count: 15, period: day}
