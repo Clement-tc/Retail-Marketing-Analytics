@@ -5,7 +5,10 @@ packages:
   - name: dbt_expectations
     package: metaplane/dbt_expectations
     version: 0.10.10
+  - name: codegen
+    package: dbt-labs/codegen
+    version: 0.14.1
   - name: dbt_date
     package: godatadriven/dbt_date
     version: 0.21.0
-sha1_hash: 74d50b4d630cc4c1607ec1c74c5bde5a6555b26a
+sha1_hash: 018d458a730bee5da62f6e919ad73f66fc802033

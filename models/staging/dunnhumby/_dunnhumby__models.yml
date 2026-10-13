@@ -95,3 +95,60 @@ models:
         description: "Horodatage de chargement dans RAW."
       - name: _batch_id
         description: "Lot de livraison (history, week_91...)."
+
+#PRODUCTS
+
+  - name: stg_dunnhumby__products
+    description: >
+      Une ligne par produit du catalogue, dans sa version la plus récente.
+      La source est remplacée à chaque livraison : les changements de catégorie
+      écrasent l'ancienne version (l'historique sera conservé par le snapshot).
+    columns:
+      - name: product_id
+        description: "Identifiant du produit. Clé de jointure avec les transactions et les coupons."
+        data_tests:
+          - not_null
+          - unique
+
+      - name: manufacturer_id
+        description: "Code du fabricant (identifiant anonymisé, pas un nom)."
+
+      - name: department
+        description: "Rayon, niveau le plus large de la hiérarchie produit (ex. GROCERY, PRODUCE). Null si non renseigné."
+        data_tests:
+          - dbt_utils.not_empty_string
+
+      - name: brand
+        description: "Type de marque : National (marque nationale) ou Private (marque distributeur)."
+
+      - name: commodity_description
+        description: >
+          Catégorie produit, niveau intermédiaire de la hiérarchie (ex. BREAD).
+          Null si non renseignée : concerne 490 produits, tous du rayon MISC. TRANS.,
+          qui sert de rayon fourre-tout pour des produits mal référencés
+          (fruits, bière, hygiène...). Poids négligeable : environ 0,1 % des ventes.
+        data_tests:
+          - dbt_utils.not_empty_string
+          - dbt_utils.not_accepted_values:
+              arguments:
+                values: ['NO COMMODITY DESCRIPTION']
+
+      - name: sub_commodity_description
+        description: "Sous-catégorie, niveau le plus fin de la hiérarchie (ex. BREAD:ITALIAN/FRENCH). Null si non renseignée."
+        data_tests:
+          - dbt_utils.not_empty_string
+          - dbt_utils.not_accepted_values:
+              arguments:
+                values: ['NO SUBCOMMODITY DESCRIPTION']
+
+      - name: size_of_product
+        description: "Taille de l'emballage telle que fournie par la source (ex. 50 OZ, 24 CT), non décomposée. Null si non renseignée."
+        data_tests:
+          - dbt_utils.not_empty_string
+
+      - name: _loaded_at
+        description: "Horodatage de chargement dans RAW."
+
+      - name: _batch_id
+        description: "Lot de livraison qui a fourni cette version du catalogue (history, week_91...)."
+
