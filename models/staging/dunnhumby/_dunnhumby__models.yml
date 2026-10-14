@@ -56,13 +56,17 @@ models:
       - name: product_id
         description: "Identifiant du produit."
         data_tests:
-          - not_null
+          - not_null:
+              config:
+                where: "rejection_reason is null"
       - name: quantity
         description: "Quantité achetée."
         data_tests:
           - dbt_expectations.expect_column_values_to_be_between:
               arguments:
                 min_value: 0
+              config:
+                where: "rejection_reason is null"
       - name: sales_value
         description: "Montant encaissé par le magasin."
       - name: store_id
@@ -91,6 +95,15 @@ models:
           - dbt_expectations.expect_column_values_to_be_between:
               arguments:
                 min_value: 0
+      - name: rejection_reason
+        description: >
+          Motif de rejet de la ligne, null si la ligne est valide. Les marts ne
+          gardent que les lignes valides. Quantité négative traitée comme une
+          erreur : la source historique n'en contient aucune.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['missing_product_id', 'negative_quantity']
       - name: _loaded_at
         description: "Horodatage de chargement dans RAW."
       - name: _batch_id

@@ -20,11 +20,27 @@ renamed as (
         week_no as week_number,
         -1 * cast(coupon_disc as number(10,2)) as coupon_discount,
         -1 * cast(coupon_match_disc as number(10,2)) as coupon_match_discount,
+        case
+            when product_id is null then 'missing_product_id'
+            when quantity < 0 then 'negative_quantity'
+        end as rejection_reason,
         _loaded_at,
         _batch_id
 
     from source
 
+),
+
+
+
+deduplicated as (
+
+    select *
+    from renamed
+    qualify row_number() over( 
+        partition by product_id , basket_id 
+        order by _loaded_at desc
+    ) =1
 )
 
-select * from renamed
+select * from deduplicated
