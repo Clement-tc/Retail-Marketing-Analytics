@@ -152,3 +152,105 @@ models:
       - name: _batch_id
         description: "Lot de livraison qui a fourni cette version du catalogue (history, week_91...)."
 
+#COUPONS
+  - name: stg_dunnhumby__coupons
+    description: ""
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+            - coupon_upc
+            - campaign_id
+            - product_id
+    columns:
+      - name: coupon_upc
+        data_type: number
+        description: "Codes-barres de coupons."
+        data_tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_match_regex:
+              arguments:
+                regex: '^[0-9]{11}$'
+      - name: product_id
+        data_type: number
+        description: "Identifiant du produit associe"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_dunnhumby__products')
+                field: product_id
+
+      - name: campaign_id
+        data_type: number
+        description: "Identifiant de la campagne"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_dunnhumby__campaigns')
+                field: campaign_id
+      - name: _loaded_at
+        data_type: timestamp_ltz
+        description: ""
+
+      - name: _batch_id
+        data_type: varchar
+        description: ""
+
+
+  - name: stg_dunnhumby__coupon_redemptions
+    description: >
+      Une ligne par coupon utilisé par un foyer, un jour donné. La source n'a ni
+      ticket ni heure : deux utilisations du même coupon le même jour seraient
+      indiscernables d'un doublon. Ce cas n'apparaît pas dans les données
+      (0 ligne identique), on ne dédoublonne donc pas.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - household_id
+              - day_number
+              - coupon_upc
+              - campaign_id
+          config:
+            severity: warn
+    columns: 
+      - name: day_number
+        data_type: number
+        description: ""
+        data_tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 1
+                max_value: 711
+
+      - name: coupon_upc
+        data_type: number
+        description: ""
+        data_tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_match_regex:
+              arguments:
+                regex: '^[0-9]{11}$'
+          - relationships:
+              arguments:
+                to: ref('stg_dunnhumby__coupons')
+                field: coupon_upc
+      - name: campaign_id
+        data_type: number
+        description: ""
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+              to: ref('stg_dunnhumby__campaigns')
+              field: campaign_id
+      - name: _loaded_at
+        data_type: timestamp_ltz
+        description: ""
+
+      - name: _batch_id
+        data_type: varchar
+        description: ""
