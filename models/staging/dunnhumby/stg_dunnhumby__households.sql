@@ -10,6 +10,11 @@ renamed as (
         household_key as household_id,
         age_desc as age_range,
         marital_status_code,
+        case marital_status_code
+            when 'A' then 'married'
+            when 'B' then 'single'
+            else null
+        end as marital_status ,
         income_desc as income_bracket,
         nullif(homeowner_desc, 'Unknown') as ownership_status,
         nullif(hh_comp_desc, 'Unknown') as household_composition,

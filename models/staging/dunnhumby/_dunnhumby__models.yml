@@ -299,3 +299,88 @@ models:
 
       - name: _batch_id
         description: "Lot de livraison (history, week_91...)."
+
+#HOUSEHOLDS
+  - name: stg_dunnhumby__households
+    description: >
+      Une ligne par foyer disposant d'un profil démographique : 801 foyers sur 2 500.
+      Attention au biais : ces foyers sont plus actifs que la moyenne (55 % des lignes
+      de transactions pour 32 % des foyers). Ce n'est pas la liste complète des foyers,
+      qui sera construite dans dim_households. Les valeurs Unknown de la source sont
+      converties en null.
+    columns:
+      - name: household_id
+        description: "Identifiant du foyer."
+        data_tests:
+          - not_null
+          - unique
+
+      - name: age_range
+        description: "Tranche d'âge du chef de foyer."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['19-24', '25-34', '35-44', '45-54', '55-64', '65+']
+
+      - name: marital_status_code
+        description: "Code situation maritale brut de la source (A, B, U), conservé pour tracer les null et détecter un nouveau code."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['A', 'B', 'U']
+
+      - name: marital_status
+        description: >
+          Situation maritale, décodée par hypothèse depuis le code source
+          (A = married, B = single, U = null). Le décodage n'est pas documenté par
+          dunnhumby : il est déduit du croisement avec la composition du foyer.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['married', 'single']
+
+      - name: income_bracket
+        description: "Tranche de revenu annuel du foyer, en dollars."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Under 15K', '15-24K', '25-34K', '35-49K', '50-74K', '75-99K',
+                         '100-124K', '125-149K', '150-174K', '175-199K', '200-249K', '250K+']
+
+      - name: ownership_status
+        description: "Statut d'occupation du logement. Null si inconnu (233 foyers)."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Homeowner', 'Renter', 'Probable Renter', 'Probable Owner']
+
+      - name: household_composition
+        description: "Composition du foyer (adultes, enfants). Null si inconnue (73 foyers)."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['2 Adults No Kids', '2 Adults Kids', 'Single Female', 'Single Male', '1 Adult Kids']
+
+      - name: household_band
+        description: "Nombre de personnes dans le foyer, en tranches (1 à 5+)."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['1', '2', '3', '4', '5+']
+
+      - name: kids_band
+        description: >
+          Nombre d'enfants, en tranches (0, 1, 2, 3+). La source mélange « aucun » et
+          « inconnu » dans None/Unknown : déduit à 0 depuis la composition du foyer
+          (2 Adults No Kids, et par hypothèse Single Female / Single Male), null pour
+          les 64 foyers sans information.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['0', '1', '2', '3+']
+
+      - name: _loaded_at
+        description: "Horodatage de chargement dans RAW."
+
+      - name: _batch_id
+        description: "Lot de livraison (history, week_91...)."
