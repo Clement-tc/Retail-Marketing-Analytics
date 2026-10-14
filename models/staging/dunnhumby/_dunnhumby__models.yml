@@ -254,3 +254,48 @@ models:
       - name: _batch_id
         data_type: varchar
         description: ""
+
+
+#CAMPAIGN_HOUSEHOLDS
+
+  - name: stg_dunnhumby__campaign_households
+    description: >
+      Une ligne par foyer ciblé par une campagne marketing. Sert à distinguer
+      les foyers ciblés des non ciblés pour mesurer l'effet des campagnes.
+      1 584 foyers ciblés, dont 824 sans profil démographique : pas de test
+      relationships vers stg_dunnhumby__households, qui ne couvre que les foyers
+      avec profil (le test sera porté par dim_households).
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+           arguments:
+            combination_of_columns:
+              - campaign_id
+              - household_id
+    columns:
+      - name: campaign_type
+        description: "Type de campagne (TypeA, TypeB, TypeC), identique à celui de stg_dunnhumby__campaigns."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['TypeA', 'TypeB', 'TypeC']
+
+      - name: household_id
+        description: "Identifiant du foyer ciblé."
+        data_tests:
+          - not_null
+
+      - name: campaign_id
+        description: "Identifiant de la campagne qui cible le foyer."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_dunnhumby__campaigns')
+                field: campaign_id
+
+      - name: _loaded_at
+        description: "Horodatage de chargement dans RAW."
+
+      - name: _batch_id
+        description: "Lot de livraison (history, week_91...)."
