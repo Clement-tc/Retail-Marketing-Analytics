@@ -28,7 +28,7 @@ models:
           - not_null
           - relationships:
               arguments:
-                to: ref('stg_dunnhumby__products')
+                to: ref('dim_products')
                 field: product_id
 
       - name: household_id

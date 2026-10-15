@@ -1,0 +1,58 @@
+version: 2
+
+models:
+  - name: dim_products
+    description: >
+      Dimension produits : une ligne par produit du catalogue, dans sa version la plus
+      récente. Porte les attributs de contexte des ventes, dont les flags is_fuel et
+      is_non_merchandise : les marquer une fois par produit suffit, chaque vente les
+      récupère par la jointure sur product_id. L'historique des changements de
+      catégorie sera géré par le snapshot (étape 5).
+    data_tests:
+      # tout carburant est non marchand : is_fuel implique is_non_merchandise
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "not is_fuel or is_non_merchandise"
+    columns:
+      - name: product_id
+        description: "Identifiant du produit. Clé de jointure avec fct_transactions."
+        data_tests:
+          - unique
+          - not_null
+
+      - name: manufacturer_id
+        description: "Code du fabricant (identifiant anonymisé, pas un nom)."
+
+      - name: department
+        description: "Rayon, niveau le plus large de la hiérarchie produit (ex. GROCERY, PRODUCE)."
+
+      - name: brand
+        description: "Type de marque : National (marque nationale) ou Private (marque distributeur)."
+
+      - name: commodity_description
+        description: "Catégorie produit (ex. BREAD). Null pour les 490 produits du rayon fourre-tout MISC. TRANS."
+
+      - name: sub_commodity_description
+        description: "Sous-catégorie, niveau le plus fin de la hiérarchie (ex. BREAD:ITALIAN/FRENCH)."
+
+      - name: size_of_product
+        description: "Taille de l'emballage telle que fournie par la source (ex. 50 OZ, 24 CT), non décomposée."
+
+      - name: is_fuel
+        description: >
+          Carburant vendu à la pompe (sous-catégorie GASOLINE-REG UNLEADED, 35 produits
+          répartis sur 3 rayons et 2 catégories). Seul critère cohérent : le rayon ou la
+          catégorie en oublieraient. Couvre toutes les quantités anormales (> 1 000). Le
+          propane (échange de bouteilles) n'est pas inclus : acheté comme un article normal.
+          À exclure des métriques de panier, de fréquence et de quantité.
+        data_tests:
+          - not_null
+
+      - name: is_non_merchandise
+        description: >
+          Ligne de caisse qui n'est pas de la marchandise : tout le carburant, plus les
+          catégories COUPON/MISC ITEMS, COUPONS/STORE & MFG et COUPON (cartes cadeaux,
+          billets, coupons, touches génériques de rayon). Les cartes cadeaux sont de
+          l'argent prépayé, pas une vente : à exclure du chiffre d'affaires marchandise.
+        data_tests:
+          - not_null

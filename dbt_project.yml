@@ -24,3 +24,6 @@ models:
     marts:
       +schema: marts
       +materialized: table
+
+vars:
+  calendar_days: 730    # 2 years: covers the transactions (711) and the campaigns (up to 719)
