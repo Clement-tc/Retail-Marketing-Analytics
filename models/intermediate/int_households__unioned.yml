@@ -1,0 +1,14 @@
+version: 2
+
+models:
+  - name: int_households__unioned
+    description: >
+      Liste complète des foyers : union des foyers vus dans les transactions,
+      les profils démographiques et les ciblages de campagne. Les rédemptions de
+      coupons ne sont pas incluses : un foyer ne peut utiliser qu'un coupon d'une
+      campagne qui l'a ciblé (garanti par assert_redemptions_by_targeted_households).
+    columns:
+      - name: household_id
+        data_tests:
+          - unique
+          - not_null
