@@ -68,11 +68,16 @@ models:
               config:
                 where: "rejection_reason is null"
       - name: sales_value
-        description: "Montant encaissé par le magasin."
+        description: >
+          Montant reçu par le magasin, après ses propres remises (carte fidélité,
+          alignement sur coupon) mais coupon fabricant inclus, car remboursé par le
+          fabricant. Vérifié sur les données : à produit, magasin et semaine égaux,
+          sales_value + loyalty_discount retrouve le prix sans remise dans 67 % des
+          cas, contre 1 % pour sales_value seul.
       - name: store_id
         description: "Identifiant du magasin."
-      - name: retail_discount
-        description: "Remise carte fidélité, en positif."
+      - name: loyalty_discount
+        description: "Remise carte fidélité, accordée et payée par le magasin, en positif. Déjà déduite de sales_value."
         data_tests:
           - dbt_expectations.expect_column_values_to_be_between:
               arguments:
@@ -83,14 +88,14 @@ models:
         description: "Heure de passage en caisse, format HHMM (1631 = 16h31)."
       - name: week_number
         description: "Numéro de semaine (1 à 102)."
-      - name: coupon_discount
-        description: "Remise coupon fabricant, en positif."
+      - name: manufacturer_coupon_discount
+        description: "Remise du coupon fabricant, en positif. Payée par le fabricant, qui la rembourse au magasin : incluse dans sales_value."
         data_tests:
           - dbt_expectations.expect_column_values_to_be_between:
               arguments:
                 min_value: 0
-      - name: coupon_match_discount
-        description: "Remise du magasin qui s'aligne sur le coupon fabricant, en positif."
+      - name: store_coupon_match_discount
+        description: "Remise ajoutée par le magasin en plus du coupon fabricant (coupon doublé), en positif. Payée par le magasin : déjà déduite de sales_value."
         data_tests:
           - dbt_expectations.expect_column_values_to_be_between:
               arguments:

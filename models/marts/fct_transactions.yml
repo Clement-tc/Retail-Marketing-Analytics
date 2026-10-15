@@ -1,0 +1,99 @@
+version: 2
+
+models:
+  - name: fct_transactions
+    description: >
+      Table de faits des ventes : une ligne par produit et par ticket de caisse,
+      lignes valides uniquement (rejection_reason null en staging). Les montants
+      suivent le parcours du prix : prix affiché (gross_amount), moins les remises
+      du magasin = montant reçu par le magasin (sales_value), moins le coupon
+      fabricant = montant payé par le client (customer_paid_amount).
+      Le carburant est conservé : le filtrer via dim_products pour les métriques
+      de panier et de fréquence.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - basket_id
+              - product_id
+    columns:
+      - name: basket_id
+        description: "Identifiant du ticket de caisse."
+        data_tests:
+          - not_null
+
+      - name: product_id
+        description: "Identifiant du produit."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_dunnhumby__products')
+                field: product_id
+
+      - name: household_id
+        description: "Identifiant du foyer."
+        data_tests:
+          - not_null
+
+      - name: store_id
+        description: "Identifiant du magasin."
+
+      - name: day_number
+        description: "Jour de l'achat. Clé de jointure avec dim_date."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: day_number
+
+      - name: week_number
+        description: "Semaine de l'achat (1 à 102)."
+
+      - name: transaction_time_hhmm
+        description: "Heure de passage en caisse, format HHMM (1631 = 16h31)."
+
+      - name: quantity
+        description: "Quantité achetée. Pour le carburant, millièmes de gallon (par inférence) : ne pas additionner avec les autres produits."
+
+      - name: sales_value
+        description: "Montant reçu par le magasin : après ses remises, coupon fabricant inclus (remboursé par le fabricant)."
+
+      - name: loyalty_discount
+        description: "Remise carte fidélité, payée par le magasin."
+
+      - name: manufacturer_coupon_discount
+        description: "Remise du coupon fabricant, payée par le fabricant."
+
+      - name: store_coupon_match_discount
+        description: "Remise ajoutée par le magasin en plus du coupon fabricant, payée par le magasin."
+
+      - name: total_discount_amount
+        description: "Économie totale du client sur la ligne : somme des trois remises."
+        data_tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+              config:
+                severity: warn        # les remises positives anormales de la source
+
+      - name: gross_amount
+        description: >
+          Prix affiché, avant les remises du magasin : sales_value + loyalty_discount
+          + store_coupon_match_discount. Le coupon fabricant n'est pas rajouté : il
+          est déjà inclus dans sales_value.
+
+      - name: customer_paid_amount
+        description: >
+          Montant payé en caisse par le client : sales_value - manufacturer_coupon_discount.
+          Identique à sales_value sans coupon fabricant. Non vérifiable sur les données
+          (pas de paiements en caisse) : découle de la définition dunnhumby de sales_value.
+
+      - name: gross_unit_price
+        description: >
+          Prix affiché à l'unité (gross_amount / quantity), identique quel que soit le
+          client. Null si quantity = 0. Non arrondi : arrondir à l'affichage seulement.
+
+      - name: _loaded_at
+        description: "Horodatage de chargement dans RAW, conservé pour le modèle incrémental (étape 5)."

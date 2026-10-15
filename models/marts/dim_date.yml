@@ -1,0 +1,63 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: >
+      Calendrier du dataset : une ligne par jour, du jour 1 au jour calendar_days
+      (variable du projet, 730 = deux ans). Généré indépendamment des transactions,
+      pour que les jours sans vente et les fins de campagne (jusqu'au jour 719)
+      existent aussi. Les dates sont fictives : dunnhumby a anonymisé le calendrier.
+    data_tests:
+      - dbt_expectations.expect_table_row_count_to_equal:
+          arguments:
+            value: "{{ var('calendar_days') }}"
+    columns:
+      - name: day_number
+        description: "Numéro du jour dans le dataset (1 = premier jour). Clé de jointure avec les transactions, coupons et campagnes."
+        data_tests:
+          - not_null
+          - unique
+
+      - name: pseudo_date
+        description: >
+          Date fictive, pour l'affichage uniquement : le jour 1 est ancré arbitrairement
+          au 2020-01-01. Les mois et années sont donc fictifs. Ne pas en déduire de jour
+          de la semaine, de saisonnalité ou de jour férié.
+        data_tests:
+          - not_null
+          - unique
+
+      - name: week_number
+        description: >
+          Numéro de semaine du dataset, calculé comme floor((day_number + 1) / 7) + 1
+          (identique au week_no de la source). La semaine 1 ne compte que 5 jours et
+          les premières semaines sont faibles (entrée progressive des foyers dans le
+          panel) : à exclure des moyennes hebdomadaires.
+        data_tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 1
+
+      - name: year
+        description: "Année de la date fictive."
+
+      - name: quarter
+        description: "Trimestre de la date fictive (1 à 4)."
+
+      - name: month_number
+        description: "Mois de la date fictive (1 à 12)."
+        data_tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 1
+                max_value: 12
+
+      - name: month_name
+        description: "Nom abrégé du mois de la date fictive (Jan, Feb...)."
+
+      - name: month_start_date
+        description: "Premier jour du mois de la date fictive : sert à regrouper par mois."
+
+      - name: day_of_month
+        description: "Jour du mois de la date fictive (1 à 31)."
