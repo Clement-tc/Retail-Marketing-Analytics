@@ -104,3 +104,9 @@ models:
 
       - name: kids_band
         description: "Nombre d'enfants en tranches (0 en partie déduit de la composition du foyer). Null si inconnu ou sans profil."
+
+      - name: income_sort_order
+        description: "Ordre de tri de income_bracket (1 = Under 15K, 12 = 250K+), issu du seed income_brackets. À utiliser dans Power BI : « Trier par colonne »."
+        
+      - name: min_income
+        description: "Borne basse de la tranche de revenu, en dollars annuels. Null sans profil."

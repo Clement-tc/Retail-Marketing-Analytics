@@ -1,0 +1,29 @@
+version: 2
+
+seeds:
+  - name: income_brackets
+    description: >
+      Référentiel des tranches de revenu de dunnhumby : ordre de tri et bornes
+      numériques. Les tranches sont du texte, triées alphabétiquement par défaut
+      (Under 15K se retrouverait en dernier) : sort_order sert au tri dans Power BI
+      (« Trier par colonne »). Bornes en dollars annuels ; max_income vide pour 250K+.
+    config:
+      column_types:
+        sort_order: integer
+        min_income: integer
+        max_income: integer
+    columns:
+      - name: income_bracket
+        description: "Libellé de la tranche, identique à celui de la source."
+        data_tests:
+          - unique
+          - not_null
+      - name: sort_order
+        description: "Ordre croissant des tranches, de 1 (Under 15K) à 12 (250K+)."
+        data_tests:
+          - unique
+          - not_null
+      - name: min_income
+        description: "Borne basse de la tranche, en dollars annuels."
+      - name: max_income
+        description: "Borne haute de la tranche, en dollars annuels. Vide pour 250K+ (pas de plafond)."

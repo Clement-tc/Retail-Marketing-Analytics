@@ -364,6 +364,10 @@ models:
               arguments:
                 values: ['Under 15K', '15-24K', '25-34K', '35-49K', '50-74K', '75-99K',
                          '100-124K', '125-149K', '150-174K', '175-199K', '200-249K', '250K+']
+          - relationships:
+              arguments:
+                to: ref('income_brackets')
+                field: income_bracket
 
       - name: ownership_status
         description: "Statut d'occupation du logement. Null si inconnu (233 foyers)."

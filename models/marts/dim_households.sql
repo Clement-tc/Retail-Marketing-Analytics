@@ -16,6 +16,12 @@ households_info as (
     from {{ ref('stg_dunnhumby__households')}}
 ),
 
+income_brackets as (
+
+    select *
+    from {{ ref('income_brackets')}}
+),
+
 
 final as (
 
@@ -46,16 +52,24 @@ final as (
         households_info.marital_status_code,
         households_info.marital_status,
         households_info.income_bracket,
+        
+        -- income brackets sort tools
+        income_brackets.sort_order as income_sort_order,
+        income_brackets.min_income,
+
         households_info.ownership_status,
         households_info.household_composition,
         households_info.household_band,
         households_info.kids_band
+
 
     from households_unioned
     left join household_rfm
         on households_unioned.household_id = household_rfm.household_id
     left join households_info
         on households_unioned.household_id = households_info.household_id
+    left join income_brackets
+        on households_info.income_bracket=income_brackets.income_bracket
 )
 
 select *
