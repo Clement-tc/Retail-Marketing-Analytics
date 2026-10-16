@@ -1,0 +1,13 @@
+version: 2
+
+models:
+  - name: int_products__classified
+    description: >
+      Produits avec leur classification (is_fuel, is_non_merchandise), calculée une
+      seule fois. Lu par dim_products et par le calcul RFM, pour que les deux
+      appliquent la même règle. Règles détaillées : voir dim_products.
+    columns:
+      - name: product_id
+        data_tests:
+          - unique
+          - not_null

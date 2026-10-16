@@ -1,7 +1,6 @@
 with transactions as (
 
-    select * from {{ ref('stg_dunnhumby__transactions') }}
-    where rejection_reason is null
+    select * from {{ ref('int_transactions__priced') }}
 
 ),
 
@@ -23,10 +22,10 @@ final as (
         loyalty_discount,
         manufacturer_coupon_discount,
         store_coupon_match_discount,
-        loyalty_discount + manufacturer_coupon_discount + store_coupon_match_discount as total_discount_amount,
-        sales_value + loyalty_discount + store_coupon_match_discount as gross_amount,
-        sales_value - manufacturer_coupon_discount as customer_paid_amount,
-        (sales_value + loyalty_discount + store_coupon_match_discount) / nullif(quantity, 0) as gross_unit_price,
+        total_discount_amount,
+        gross_amount,
+        customer_paid_amount,
+        gross_unit_price,
 
         -- technique (pour l'incrémental, étape 5)
         _loaded_at
