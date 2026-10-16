@@ -65,6 +65,39 @@ final as (
     from household_stats
     cross join reference_day
 
+),
+
+scores as (
+
+    select
+        *,
+        cast(ceil(5 * cume_dist() over (order by days_since_last_visit desc)) as integer) as recency_score,
+        cast(ceil(5 * cume_dist() over (order by number_of_visits)) as integer) as frequency_score,
+        cast(ceil(5 * cume_dist() over (order by total_customer_paid_amount)) as integer) as monetary_score,
+        cast((frequency_score + monetary_score) / 2 as number(2, 1)) as value_score
+    from final
+
+),
+
+segments as (
+
+    select
+        *,
+        -- grille récence x valeur, lue dans l'ordre :
+        -- actif = recency_score >= 3 (venu dans les 9 derniers jours)
+        -- valeur haute >= 4,5 / moyenne 3 à 4 / basse <= 2,5
+        case
+            when recency_score >= 3 and value_score >= 4.5 then 'champions'
+            when recency_score >= 3 and value_score >= 3 then 'loyal'
+            when recency_score >= 3 then 'occasional'
+            when value_score >= 3 then 'at_risk'
+            else 'hibernating'
+        end as rfm_segment
+    from scores
+
 )
 
-select * from final
+select * from segments
+
+
+

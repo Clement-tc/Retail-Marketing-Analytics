@@ -1,0 +1,106 @@
+version: 2
+
+models:
+  - name: dim_households
+    description: >
+      Dimension foyers : une ligne par foyer, pour les 2 499 foyers connus (la liste
+      complète de int_households__unioned), qu'ils aient ou non un profil démographique.
+      Réunit la segmentation RFM, le comportement d'achat (marchandise uniquement,
+      carburant exclu) et le profil démographique quand il existe.
+      Attention au biais : seuls 801 foyers ont un profil, et ce sont les plus actifs.
+      Toute analyse par profil (âge, revenu...) ne porte que sur eux : filtrer sur
+      has_demographics et le signaler.
+    data_tests:
+      # les jointures ne doivent ni perdre ni dupliquer de foyer
+      - dbt_expectations.expect_table_row_count_to_equal_other_table:
+          arguments:
+            compare_model: ref('int_households__unioned')
+      # sans profil, toutes les colonnes démographiques sont vides
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "has_demographics or (age_range is null and income_bracket is null and marital_status_code is null)"
+    columns:
+      - name: household_id
+        description: "Identifiant du foyer. Clé de jointure avec fct_transactions."
+        data_tests:
+          - unique
+          - not_null
+
+      # --- segmentation RFM ---
+      - name: rfm_segment
+        description: >
+          Segment RFM (grille récence x valeur, règles détaillées dans int_household_rfm).
+          champions : actifs, valeur haute. loyal : actifs, valeur moyenne. occasional :
+          actifs, valeur basse. at_risk : valeur haute ou moyenne mais en décrochage
+          (10 jours ou plus sans visite). hibernating : en décrochage, valeur basse.
+          no_merchandise_purchase : foyer sans aucun achat de marchandise (carburant
+          uniquement), absent du calcul RFM.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['champions', 'loyal', 'occasional', 'at_risk', 'hibernating', 'no_merchandise_purchase']
+
+      - name: recency_score
+        description: "Score de récence de 1 à 5 (5 = venu le plus récemment). Null si no_merchandise_purchase."
+
+      - name: frequency_score
+        description: "Score de fréquence de 1 à 5 (5 = vient le plus souvent). Null si no_merchandise_purchase."
+
+      - name: monetary_score
+        description: "Score de montant de 1 à 5 (5 = dépense le plus). Null si no_merchandise_purchase."
+
+      - name: value_score
+        description: "Valeur du foyer : moyenne des scores de fréquence et de montant (1 à 5, par demi-points)."
+
+      # --- comportement d'achat ---
+      - name: last_visit_day
+        description: "Jour de la dernière visite avec achat de marchandise. Joignable à dim_date."
+
+      - name: days_since_last_visit
+        description: "Jours depuis la dernière visite, au dernier jour observé dans les données."
+
+      - name: number_of_visits
+        description: "Nombre de paniers contenant de la marchandise."
+
+      - name: average_basket
+        description: "Panier moyen : montant moyen payé par le client par visite."
+
+      - name: total_customer_paid_amount
+        description: "Total payé en caisse par le foyer, marchandise uniquement."
+
+      - name: average_coupon_amount
+        description: "Économie moyenne par visite grâce aux coupons (fabricant + alignement du magasin)."
+
+      - name: total_customer_coupon_amount
+        description: "Économie totale grâce aux coupons : repère les foyers qui utilisent volontairement les coupons."
+
+      # --- profil démographique ---
+      - name: has_demographics
+        description: "Vrai si le foyer a un profil démographique (801 foyers). Filtre à appliquer pour toute analyse par profil."
+        data_tests:
+          - not_null
+
+      - name: age_range
+        description: "Tranche d'âge du chef de foyer. Null sans profil."
+
+      - name: marital_status_code
+        description: "Code situation maritale brut de la source (A, B, U). Null sans profil."
+
+      - name: marital_status
+        description: "Situation maritale décodée par hypothèse (A = married, B = single). Null si inconnue ou sans profil."
+
+      - name: income_bracket
+        description: "Tranche de revenu annuel du foyer. Null sans profil."
+
+      - name: ownership_status
+        description: "Statut d'occupation du logement. Null si inconnu ou sans profil."
+
+      - name: household_composition
+        description: "Composition du foyer (adultes, enfants). Null si inconnue ou sans profil."
+
+      - name: household_band
+        description: "Nombre de personnes dans le foyer, en tranches. Null sans profil."
+
+      - name: kids_band
+        description: "Nombre d'enfants en tranches (0 en partie déduit de la composition du foyer). Null si inconnu ou sans profil."

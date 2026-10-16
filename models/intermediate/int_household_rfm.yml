@@ -1,0 +1,134 @@
+version: 2
+
+models:
+  - name: int_household_rfm
+    description: >
+      Comportement d'achat par foyer et segmentation RFM (Recency, Frequency, Monetary).
+      Marchandise uniquement : le carburant et les lignes non marchandes sont exclus, car
+      ils gonfleraient la fréquence de visite (8,8 % des paniers). Seuls les foyers ayant
+      acheté de la marchandise : dim_households complète avec les autres (colonnes à null).
+      Scores de 1 à 5 par cume_dist plutôt que ntile, pour que deux foyers ex aequo aient
+      le même score (récence et fréquence ont beaucoup d'égalités). Segments : grille
+      récence x valeur (voir rfm_segment). La valeur n'a pas de rupture naturelle (la
+      dépense double à chaque point de score) : les seuils sont un choix métier, fixés
+      sur la concentration du chiffre d'affaires.
+    columns:
+      - name: household_id
+        description: "Identifiant du foyer."
+        data_tests:
+          - unique
+          - not_null
+
+      - name: last_visit_day
+        description: "Jour de la dernière visite avec achat de marchandise."
+        data_tests:
+          - not_null
+
+      - name: days_since_last_visit
+        description: >
+          Récence : jours entre la dernière visite et le dernier jour observé dans les
+          données (toutes lignes valides). Avance d'elle-même à chaque semaine livrée.
+        data_tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+
+      - name: number_of_visits
+        description: "Fréquence : nombre de paniers contenant de la marchandise."
+        data_tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 1
+
+      - name: average_basket
+        description: "Panier moyen : montant moyen payé par le client par visite (customer_paid_amount)."
+        data_tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+
+      - name: total_customer_paid_amount
+        description: "Montant : total payé par le foyer en caisse sur la période, marchandise uniquement."
+        data_tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+
+      - name: average_coupon_amount
+        description: >
+          Économie moyenne par visite grâce aux coupons (coupon fabricant + alignement du
+          magasin). Mesure l'usage volontaire des coupons, pas la carte fidélité.
+        data_tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+
+      - name: total_customer_coupon_amount
+        description: "Économie totale grâce aux coupons sur la période."
+        data_tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+
+      - name: recency_score
+        description: "Score de récence de 1 à 5 : 5 = les foyers venus le plus récemment."
+        data_tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 1
+                max_value: 5
+
+      - name: frequency_score
+        description: "Score de fréquence de 1 à 5 : 5 = les foyers qui viennent le plus souvent."
+        data_tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 1
+                max_value: 5
+
+      - name: monetary_score
+        description: "Score de montant de 1 à 5 : 5 = les foyers qui dépensent le plus."
+        data_tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 1
+                max_value: 5
+
+      - name: value_score
+        description: "Valeur du foyer : moyenne des scores de fréquence et de montant (1 à 5, par demi-points)."
+        data_tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 1
+                max_value: 5
+
+      - name: rfm_segment
+        description: >
+          Segment RFM, grille récence x valeur. Récence : actif si recency_score >= 3
+          (venu dans les 9 derniers jours, les scores 3 à 5 couvrant tous des achats
+          hebdomadaires), sinon en décrochage (10 jours ou plus). Valeur : haute si
+          value_score >= 4,5 (23 % des foyers, 55 % du CA), moyenne de 3 à 4, basse si <= 2,5
+          (43 % des foyers, 13 % du CA).
+          champions : actifs, valeur haute. loyal : actifs, valeur moyenne.
+          occasional : actifs, valeur basse (on ne mesure pas l'ancienneté : « nouveau »
+          ne serait pas vérifiable). at_risk : valeur haute ou moyenne mais en décrochage,
+          les foyers qui décrochent. hibernating : en décrochage, valeur basse.
+          Grille complète : chaque foyer tombe dans exactement un segment.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['champions', 'loyal', 'occasional', 'at_risk', 'hibernating']
+          - dbt_expectations.expect_column_distinct_count_to_equal:
+              arguments:
+                value: 5

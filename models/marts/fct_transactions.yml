@@ -32,9 +32,13 @@ models:
                 field: product_id
 
       - name: household_id
-        description: "Identifiant du foyer."
+        description: "Identifiant du foyer. Clé de jointure avec dim_households."
         data_tests:
           - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_households')
+                field: household_id
 
       - name: store_id
         description: "Identifiant du magasin."
