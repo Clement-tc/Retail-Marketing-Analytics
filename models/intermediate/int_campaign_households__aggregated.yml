@@ -1,0 +1,92 @@
+version: 2
+
+models:
+  - name: int_campaign_households__aggregated
+    description: >
+      Une ligne par campagne x foyer, pour tous les foyers (ciblés ou non), avec
+      la dépense avant et pendant la campagne. Base de la mesure d'effet des
+      campagnes par différence de différences (fct_campaign_performance).
+      Méthode : la période « avant » a la même durée que la campagne et la précède
+      immédiatement, pour comparer à saison et panel égaux. Dépense = sales_value
+      (montant reçu par le magasin, non diminué par les coupons de la campagne),
+      marchandise uniquement (carburant exclu). Les moyennes sont par jour, pour
+      comparer des campagnes de durées différentes (33 à 162 jours).
+      Les marts filtrent sur is_complete et utilisent is_in_other_campaign pour
+      constituer un groupe témoin propre.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - campaign_id
+              - household_id
+    columns:
+      - name: campaign_id
+        description: "Identifiant de la campagne."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_dunnhumby__campaigns')
+                field: campaign_id
+
+      - name: household_id
+        description: "Identifiant du foyer (tous les foyers, ciblés ou non)."
+        data_tests:
+          - not_null
+
+      - name: days_in_period
+        description: "Durée de la campagne en jours, bornes incluses. La période « avant » a la même durée."
+        data_tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 1
+
+      - name: is_targeted
+        description: "Vrai si le foyer est ciblé par cette campagne."
+        data_tests:
+          - not_null
+
+      - name: is_in_other_campaign
+        description: >
+          Vrai si le foyer est ciblé par une autre campagne qui chevauche la fenêtre
+          de celle-ci (avant + pendant). Foyers ciblés : sert au taux de chevauchement
+          (77 % des couples ciblés), l'effet mesuré peut mêler plusieurs campagnes.
+          Foyers non ciblés : ceux à true sont exclus du groupe témoin, car leur
+          dépense est influencée par une autre campagne.
+        data_tests:
+          - not_null
+
+      - name: is_complete
+        description: >
+          Vrai si toute la période de la campagne a été livrée (end_day <= dernier jour
+          observé). Une campagne incomplète a une période « pendant » tronquée : ne pas
+          la mesurer. Devient vrai de lui-même au fil des livraisons.
+        data_tests:
+          - not_null
+
+      - name: spend_before
+        description: "Dépense totale du foyer (sales_value, marchandise) pendant la période « avant ». 0 si aucun achat."
+        data_tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+
+      - name: spend_during
+        description: "Dépense totale du foyer (sales_value, marchandise) pendant la campagne. 0 si aucun achat."
+        data_tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+
+      - name: daily_spend_before
+        description: "Dépense moyenne par jour avant la campagne : spend_before / days_in_period."
+        data_tests:
+          - not_null
+
+      - name: daily_spend_during
+        description: "Dépense moyenne par jour pendant la campagne : spend_during / days_in_period."
+        data_tests:
+          - not_null
