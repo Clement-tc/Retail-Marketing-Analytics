@@ -32,3 +32,6 @@ vars:
   # 10 tranches font perdre des campagnes faute de foyers comparables
   uplift_spend_bands: 5
   uplift_min_households_per_band: 5    # par groupe (ciblés et témoins) pour qu'une tranche compte
+  incremental_lookback_days : 3       #Nombre de jours précedent à inclure dans le refresh incrémental
+  # contrôle de volume : écart toléré entre une livraison et la moyenne des 4 semaines précédentes
+  volume_tolerance_pct: 0.3

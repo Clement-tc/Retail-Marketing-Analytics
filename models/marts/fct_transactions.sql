@@ -1,7 +1,18 @@
+{{ config (
+
+    materialized = 'incremental',
+    unique_key = ['basket_id','product_id'],
+    incremental_strategy = 'merge'
+)   }}
+
 with transactions as (
 
-    select * from {{ ref('int_transactions__priced') }}
+    select * 
+    from {{ ref('int_transactions__priced') }}
 
+    {% if is_incremental() %}
+    where _loaded_at > (select dateadd(day, -{{ var('incremental_lookback_days', 3) }}, max(_loaded_at)) from {{ this }})
+    {% endif %}
 ),
 
 final as (
