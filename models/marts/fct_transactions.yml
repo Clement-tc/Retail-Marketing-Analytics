@@ -11,11 +11,16 @@ models:
       Le carburant est conservé : le filtrer via dim_products pour les métriques
       de panier et de fréquence.
     data_tests:
+      # unicité testée sur les lignes chargées récemment : les anciennes l'ont déjà été à leur
+      # arrivée, et le merge sur unique_key empêche qu'une nouvelle ligne les duplique.
+      # la vérification complète est dans le test d'unicité de int_transactions__priced
       - dbt_utils.unique_combination_of_columns:
           arguments:
             combination_of_columns:
               - basket_id
               - product_id
+          config:
+            where: "_loaded_at >= dateadd(day, -{{ var('incremental_lookback_days') }}, current_date)"
     columns:
       - name: basket_id
         description: "Identifiant du ticket de caisse."
