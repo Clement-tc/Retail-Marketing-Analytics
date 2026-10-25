@@ -1,0 +1,41 @@
+snapshots:
+  - name: products_snapshot
+    relation: ref('stg_dunnhumby__products')
+    description: >
+      Historique des versions du catalogue produits (SCD de type 2) : une ligne par version
+      d'un produit, avec dbt_valid_from et dbt_valid_to. La source est remplacée à chaque
+      livraison, ce snapshot est le seul endroit où les anciennes catégories sont conservées :
+      table à ne jamais supprimer, elle ne peut pas être reconstruite.
+      Stratégie check sur les colonnes métier : _loaded_at change pour tous les produits à
+      chaque livraison (rechargement complet), une stratégie timestamp créerait une version
+      par produit et par semaine. Snapshot du modèle de staging, pour comparer des valeurs
+      nettoyées (un placeholder ou un espace ne crée pas de fausse version).
+      Historique disponible à partir du premier snapshot (après la semaine 94) : les
+      changements des semaines 91 à 94 ne sont pas récupérables.
+    config:
+      schema: snapshots
+      unique_key: product_id
+      strategy: check
+      check_cols:
+        - department
+        - brand
+        - commodity_description
+        - sub_commodity_description
+        - size_of_product
+        - manufacturer_id
+    columns:
+      - name: dbt_scd_id
+        description: "Identifiant unique d'une version de produit, généré par dbt."
+        data_tests:
+          - unique
+          - not_null
+      - name: product_id
+        description: "Identifiant du produit : plusieurs lignes si le produit a changé."
+        data_tests:
+          - not_null
+      - name: dbt_valid_from
+        description: "Moment du snapshot où cette version est apparue."
+        data_tests:
+          - not_null
+      - name: dbt_valid_to
+        description: "Moment du snapshot où cette version a été remplacée. Null = version actuelle."
