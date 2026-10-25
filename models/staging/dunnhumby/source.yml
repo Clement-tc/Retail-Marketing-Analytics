@@ -25,3 +25,9 @@ sources:
           freshness:
             warn_after: {count: 8, period: day}
             error_after: {count: 15, period: day}
+      - name: simulator_log
+        description: >
+          Journal des défauts injectés volontairement par le simulateur (doublons, retards,
+          valeurs invalides, changements de produit), une ligne par ligne abîmée. Ne sert pas
+          aux modèles : c'est le « corrigé » qui permet de tester que le pipeline traite
+          chaque défaut. Créée à la première livraison hebdomadaire.
