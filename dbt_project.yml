@@ -27,3 +27,8 @@ models:
 
 vars:
   calendar_days: 730    # 2 years: covers the transactions (711) and the campaigns (up to 719)
+  # mesure d'effet des campagnes : tranches de dépense avant campagne
+  # 3, 5 et 10 tranches testées : l'uplift converge à partir de 5 (0,77 / 1,02 / 1,12 €),
+  # 10 tranches font perdre des campagnes faute de foyers comparables
+  uplift_spend_bands: 5
+  uplift_min_households_per_band: 5    # par groupe (ciblés et témoins) pour qu'une tranche compte

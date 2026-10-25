@@ -1,0 +1,158 @@
+version: 2
+
+models:
+  - name: fct_campaign_performance
+    description: >
+      Performance des campagnes marketing : une ligne par campagne (30). Répond à la
+      question « quelles campagnes génèrent réellement des ventes supplémentaires ? ».
+      Effet mesuré par différence de différences : évolution de la dépense journalière
+      des foyers ciblés entre la période « avant » (même durée, juste avant) et la
+      campagne, comparée à celle de témoins propres (non ciblés par aucune campagne
+      chevauchante). Mesure principale : uplift_per_day, qui compare les foyers à dépense
+      égale avant campagne (voir int_campaign_uplift__stratified) ; la méthode naïve est
+      conservée pour montrer le biais de sélection. Limites : 77 % des foyers ciblés
+      reçoivent d'autres campagnes en même temps (overlap_pct), et les petites campagnes
+      sont bruitées (is_low_sample). Effet null pour les campagnes incomplètes, dont toutes
+      les semaines ne sont pas encore livrées. Précision fixée dans le modèle (taux et euros
+      par jour : 4 décimales, totaux : 2) ; arrondir à l'affichage.
+    data_tests:
+      - dbt_expectations.expect_table_row_count_to_equal_other_table:
+          arguments:
+            compare_model: ref('stg_dunnhumby__campaigns')
+    columns:
+      # --- description ---
+      - name: campaign_id
+        description: "Identifiant de la campagne."
+        data_tests:
+          - unique
+          - not_null
+      - name: campaign_type
+        description: "Type de campagne (TypeA : grandes opérations, ~45 % des foyers ; TypeB et TypeC : ciblages plus restreints)."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['TypeA', 'TypeB', 'TypeC']
+      - name: start_day
+        description: "Premier jour de la campagne. Joignable à dim_date."
+      - name: end_day
+        description: "Dernier jour de la campagne. Joignable à dim_date."
+      - name: days_in_period
+        description: "Durée de la campagne en jours ; la période « avant » a la même durée."
+      - name: is_complete
+        description: "Vrai si toute la campagne a été livrée. Sinon, les mesures d'effet sont null (campagne « en cours »)."
+        data_tests:
+          - not_null
+
+      # --- composition et portée ---
+      - name: targeted_households
+        description: "Foyers ciblés par la campagne, actifs ou non."
+        data_tests:
+          - not_null
+      - name: reach_pct
+        description: "Part de l'ensemble des foyers ciblée par la campagne (entre 0 et 1)."
+        data_tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: control_households
+        description: "Foyers témoins propres : non ciblés, et non ciblés par une autre campagne chevauchant la fenêtre."
+      - name: overlap_pct
+        description: >
+          Part des foyers ciblés également exposés à une autre campagne pendant la fenêtre
+          (entre 0 et 1). Indicateur de fiabilité : plus il est haut, plus l'effet mesuré
+          peut mêler plusieurs campagnes.
+        data_tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: coupons_distributed
+        description: "Nombre de coupons distincts de la campagne."
+      - name: redeeming_households
+        description: "Foyers ayant utilisé au moins un coupon de la campagne."
+      - name: coupons_redeemed
+        description: "Nombre total de coupons utilisés (un foyer peut en utiliser plusieurs)."
+      - name: redemption_rate
+        description: "Foyers ayant utilisé un coupon / foyers ciblés (entre 0 et 1)."
+        data_tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+                max_value: 1
+
+      # --- dépenses par groupe (euros par foyer actif et par jour, sales_value, marchandise) ---
+      - name: targeted_spend_before
+        description: "Dépense journalière moyenne des foyers ciblés actifs, avant la campagne."
+      - name: targeted_spend_during
+        description: "Dépense journalière moyenne des foyers ciblés actifs, pendant la campagne."
+      - name: control_spend_before
+        description: "Dépense journalière moyenne des témoins propres actifs, avant la campagne."
+      - name: control_spend_during
+        description: "Dépense journalière moyenne des témoins propres actifs, pendant la campagne."
+
+      # --- effet ---
+      - name: active_targeted_households
+        description: "Foyers ciblés actifs avant la campagne, base de l'uplift."
+      - name: uplift_per_day
+        description: >
+          Mesure principale de l'effet : euros supplémentaires par foyer ciblé et par jour,
+          en comparant les foyers à dépense égale avant campagne (5 tranches, différence de
+          différences par tranche, pondérée par les foyers ciblés).
+      - name: uplift_pct
+        description: "uplift_per_day rapporté à la dépense des ciblés avant campagne : l'effet en %, comparable entre campagnes."
+      - name: incremental_sales
+        description: >
+          Ventes supplémentaires attribuées à la campagne, en euros : uplift_per_day x foyers
+          ciblés actifs x durée. Estimation haute, car une partie peut venir de campagnes
+          chevauchantes (comparer avec uplift_per_day_no_overlap).
+      - name: uplift_per_day_ci_low
+        description: >
+          Borne basse de l'intervalle de confiance à 95 % de uplift_per_day (uplift - 1,96 x
+          erreur type). Erreur type : variance de la différence de différences dans chaque
+          tranche (var ciblés / n ciblés + var témoins / n témoins), combinée avec les poids
+          des tranches. Approximation normale, foyers supposés indépendants.
+      - name: uplift_per_day_ci_high
+        description: "Borne haute de l'intervalle de confiance à 95 % de uplift_per_day."
+      - name: is_significant
+        description: >
+          Vrai si l'intervalle de confiance exclut 0 : l'effet positif est démontré à 95 %.
+          Faux = on ne peut pas conclure (pas « la campagne ne marche pas »). Null si non mesurable.
+      - name: uplift_coverage_pct
+        description: >
+          Part des foyers ciblés actifs sur lesquels repose l'uplift (ceux des tranches qui ont
+          assez de ciblés et de témoins). Basse = résultat fondé sur peu de foyers.
+        data_tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: is_low_sample
+        description: "Vrai si moins de 50 foyers ciblés actifs : résultat trop bruité pour conclure."
+        data_tests:
+          - not_null
+      - name: active_targeted_only_households
+        description: "Foyers ciblés par cette seule campagne, actifs avant."
+      - name: uplift_per_day_no_overlap
+        description: >
+          Contrôle de robustesse : le même uplift sur les seuls foyers sans chevauchement.
+          Proche de uplift_per_day = effet robuste ; null si trop peu de foyers.
+      - name: uplift_per_day_naive
+        description: >
+          Différence de différences naïve : ciblés contre l'ensemble des témoins. Biaisée par la
+          sélection (les ciblés dépensent environ 3 fois plus) et la régression vers la moyenne :
+          conservée pour comparaison, pas pour décider.
+
+      # --- détail des groupes ---
+      - name: overlap_spend_before
+        description: "Dépense journalière avant, foyers ciblés aussi exposés à une autre campagne."
+      - name: overlap_spend_during
+        description: "Dépense journalière pendant, foyers ciblés aussi exposés à une autre campagne."
+      - name: targeted_only_spend_before
+        description: "Dépense journalière avant, foyers ciblés par cette seule campagne."
+      - name: targeted_only_spend_during
+        description: "Dépense journalière pendant, foyers ciblés par cette seule campagne."
+      - name: excluded_spend_before
+        description: "Dépense journalière avant, foyers non ciblés mais exposés à une autre campagne (exclus des témoins)."
+      - name: excluded_spend_during
+        description: "Dépense journalière pendant, foyers non ciblés mais exposés à une autre campagne (exclus des témoins)."

@@ -1,0 +1,62 @@
+version: 2
+
+models:
+  - name: int_campaign_uplift__stratified
+    description: >
+      Effet de chaque campagne complète, par différence de différences stratifiée.
+      Le magasin cible ses meilleurs clients (environ 9 € par jour avant campagne,
+      contre 3 € pour les témoins) : comparés directement, la moitié des campagnes
+      ressortaient négatives, à cause de la régression vers la moyenne. Les foyers sont
+      donc répartis en tranches de dépense avant campagne (var uplift_spend_bands, par
+      cume_dist et par campagne) ; la différence de différences est calculée dans chaque
+      tranche, puis moyennée, pondérée par les foyers ciblés (effet moyen sur les traités).
+      Une tranche ne compte que si ciblés et témoins y ont chacun au moins
+      var uplift_min_households_per_band foyers. Foyers comparés : ciblés et témoins
+      propres (non ciblés par une campagne chevauchante), actifs avant la campagne.
+      Campagnes incomplètes absentes : elles apparaissent sans uplift dans le mart.
+    columns:
+      - name: campaign_id
+        description: "Identifiant de la campagne (campagnes complètes uniquement)."
+        data_tests:
+          - unique
+          - not_null
+
+      - name: active_targeted_households
+        description: "Foyers ciblés actifs avant la campagne, base de la comparaison."
+        data_tests:
+          - not_null
+
+      - name: active_control_households
+        description: "Foyers témoins propres actifs avant la campagne."
+        data_tests:
+          - not_null
+
+      - name: valid_bands
+        description: "Nombre de tranches avec assez de ciblés et de témoins pour être comparées."
+
+      - name: stratified_daily_uplift
+        description: >
+          Effet de la campagne en euros par foyer ciblé et par jour (sales_value,
+          marchandise) : différence de différences par tranche, moyennée et pondérée
+          par les foyers ciblés.
+
+      - name: pct_targeted_in_valid_bands
+        description: >
+          Part des foyers ciblés actifs qui tombent dans une tranche valide, donc sur
+          lesquels repose l'uplift. Proche de 1 pour les grandes campagnes, plus bas
+          pour les petites.
+        data_tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+                max_value: 1
+
+      - name: active_targeted_only_households
+        description: "Foyers ciblés par cette seule campagne (sans chevauchement), actifs avant."
+
+      - name: stratified_daily_uplift_targeted_only
+        description: >
+          Contrôle de robustesse : le même uplift calculé sur les seuls foyers ciblés
+          par cette campagne. Proche de stratified_daily_uplift = effet robuste aux
+          chevauchements ; très différent = chevauchements ou sélection influencent
+          la mesure. Null quand trop peu de foyers ciblés seuls.

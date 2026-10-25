@@ -263,8 +263,8 @@ models:
           - not_null
           - relationships:
               arguments:
-              to: ref('stg_dunnhumby__campaigns')
-              field: campaign_id
+                to: ref('stg_dunnhumby__campaigns')
+                field: campaign_id
       - name: _loaded_at
         data_type: timestamp_ltz
         description: ""
