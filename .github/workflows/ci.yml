@@ -53,7 +53,9 @@ jobs:
       # toujours exécuté, même si le build échoue, pour ne pas laisser de schéma orphelin
       - name: Supprimer le schéma de la CI
         if: always()
-        run: dbt run-operation drop_schemas_by_prefix --target ci --args "{prefix: dbt_ci_${DBT_CI_SCHEMA_SUFFIX}}"
+        # bloc « | » : la commande contient « prefix: », que le YAML lirait sinon comme une clé
+        run: |
+          dbt run-operation drop_schemas_by_prefix --target ci --args "{prefix: dbt_ci_${DBT_CI_SCHEMA_SUFFIX}}"
 
       - name: Supprimer la clé privée
         if: always()
