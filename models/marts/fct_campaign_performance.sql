@@ -1,9 +1,3 @@
-{{ config(
-    materialized = 'incremental',
-    unique_key = ['basket_id','product_id'],
-    incremental_strategy = 'merge'
-)   }}
-
 with campaign_households_agg as (
 
     select * from {{ ref('int_campaign_households__aggregated') }}
