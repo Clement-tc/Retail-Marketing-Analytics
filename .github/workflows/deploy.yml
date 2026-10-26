@@ -1,0 +1,58 @@
+# déploiement : à chaque merge sur main, vérifie la fraîcheur des sources,
+# puis construit et teste le projet en prod (schémas staging, marts... sans préfixe)
+name: dbt deploy
+
+on:
+  push:
+    branches: [main]
+  # lancement manuel possible depuis l'onglet Actions
+  workflow_dispatch:
+
+# jamais deux déploiements en même temps
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  dbt-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_PRIVATE_KEY_PATH: ${{ github.workspace }}/snowflake_key.p8
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Installer dbt
+        run: pip install -r requirements.txt
+
+      - name: Écrire la clé privée Snowflake
+        run: |
+          printf '%s\n' "${{ secrets.SNOWFLAKE_PRIVATE_KEY }}" > "$SNOWFLAKE_PRIVATE_KEY_PATH"
+          chmod 600 "$SNOWFLAKE_PRIVATE_KEY_PATH"
+
+      - name: Installer les packages dbt
+        run: dbt deps
+
+      # données arrivées récemment ? avertissement après 8 jours, erreur après 15 :
+      # inutile de reconstruire la prod sur des données périmées
+      - name: Vérifier la fraîcheur des sources
+        run: dbt source freshness --target prod
+
+      # build = modèles + snapshot + seed + tests, dans l'ordre des dépendances
+      - name: Construire et tester la prod
+        run: dbt build --target prod
+
+      - name: Supprimer la clé privée
+        if: always()
+        run: rm -f "$SNOWFLAKE_PRIVATE_KEY_PATH"

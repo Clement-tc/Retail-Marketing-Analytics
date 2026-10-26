@@ -1,0 +1,60 @@
+# CI : à chaque pull request vers main, construit et teste tout le projet
+# dans un schéma jetable, puis supprime ce schéma
+name: dbt CI
+
+on:
+  pull_request:
+    branches: [main]
+
+# un seul run à la fois par pull request : un nouveau push annule le run en cours
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  dbt-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_PRIVATE_KEY_PATH: ${{ github.workspace }}/snowflake_key.p8
+      DBT_CI_SCHEMA_SUFFIX: pr_${{ github.event.pull_request.number }}
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Installer dbt
+        run: pip install -r requirements.txt
+
+      # la clé privée vient d'un secret GitHub : écrite dans un fichier le temps du run
+      - name: Écrire la clé privée Snowflake
+        run: |
+          printf '%s\n' "${{ secrets.SNOWFLAKE_PRIVATE_KEY }}" > "$SNOWFLAKE_PRIVATE_KEY_PATH"
+          chmod 600 "$SNOWFLAKE_PRIVATE_KEY_PATH"
+
+      - name: Installer les packages dbt
+        run: dbt deps
+
+      - name: Vérifier la connexion
+        run: dbt debug --target ci
+
+      - name: Construire et tester
+        run: dbt build --target ci
+
+      # toujours exécuté, même si le build échoue, pour ne pas laisser de schéma orphelin
+      - name: Supprimer le schéma de la CI
+        if: always()
+        run: dbt run-operation drop_schemas_by_prefix --target ci --args "{prefix: dbt_ci_${DBT_CI_SCHEMA_SUFFIX}}"
+
+      - name: Supprimer la clé privée
+        if: always()
+        run: rm -f "$SNOWFLAKE_PRIVATE_KEY_PATH"

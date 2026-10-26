@@ -48,3 +48,15 @@ alter user <user> set
   default_warehouse = transforming_wh
   -- sinon tous les rôles accordés (dont accountadmin) restent actifs en secondaire
   default_secondary_roles = ();
+
+-- utilisateur technique de la CI GitHub Actions : type service (clé uniquement, pas de
+-- connexion à Snowsight), rôle transformer seul. remplacer <ci_public_key> par le contenu
+-- de ci_rsa_key.pub sans les lignes begin/end ; la clé privée va dans un secret GitHub
+create user if not exists dbt_ci
+  type = service
+  comment = 'Utilisateur technique de la CI GitHub Actions (dbt)'
+  rsa_public_key = '<ci_public_key>'
+  default_role = transformer
+  default_warehouse = transforming_wh
+  default_secondary_roles = ();
+grant role transformer to user dbt_ci;

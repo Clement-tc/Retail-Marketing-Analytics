@@ -12,6 +12,17 @@ retail_marketing:
       database: analytics
       schema: "dbt_{{ env_var('DBT_DEV_SCHEMA_SUFFIX', 'dev') }}"
       threads: 4
+    # ci : un schéma jetable par pull request (dbt_ci_pr_<numéro>_staging...), supprimé en fin de run
+    ci:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      private_key_path: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH') }}"
+      role: transformer
+      warehouse: transforming_wh
+      database: analytics
+      schema: "dbt_ci_{{ env_var('DBT_CI_SCHEMA_SUFFIX', 'local') }}"
+      threads: 8
     prod:
       type: snowflake
       account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
