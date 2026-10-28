@@ -13,6 +13,10 @@ snapshot-paths: ["snapshots"]
 
 clean-targets: ["target", "dbt_packages"]
 
+# accès du reporting (power bi) au schéma marts, en prod uniquement
+on-run-end:
+  - "{{ grant_reporter_access() }}"
+
 models:
   retail_marketing:
     staging:
@@ -24,6 +28,10 @@ models:
     marts:
       +schema: marts
       +materialized: table
+      # lecture des marts par le rôle reporter (power bi), en prod uniquement ;
+      # réappliqué à chaque construction, un create or replace table effaçant les droits
+      +grants:
+        select: "{{ ['reporter'] if target.name == 'prod' else [] }}"
 
 vars:
   calendar_days: 730    # 2 years: covers the transactions (711) and the campaigns (up to 719)
